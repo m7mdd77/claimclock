@@ -1,0 +1,18 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {examples,status,validate,importEntries,exportEntries} from './domain.mjs';
+const now = Date.parse('2026-10-06T12:00:00Z');
+test('cash ready, blocked and noncash excluded',()=>assert.deepEqual(examples(now).map(e=>status(e,now)),['ready','blocked','excluded']));
+test('deadline boundary is expired',()=>assert.equal(status({...examples(now)[0],deadline:new Date(now).toISOString()},now),'expired'));
+test('a completed checklist is not a submission',()=>assert.equal(status(examples(now)[0],now),'ready'));
+test('receipt survives deadline expiry',()=>assert.equal(status({...examples(now)[0],receipt:'https://example.com/receipt',deadline:new Date(now-1).toISOString()},now),'submitted'));
+test('roundtrip preserves data',()=>assert.deepEqual(importEntries(exportEntries(examples(now))),examples(now)));
+test('unsafe source is rejected',()=>assert.throws(()=>validate({...examples(now)[0],source:'javascript:alert(1)'})));
+test('unsafe receipt is rejected',()=>assert.throws(()=>validate({...examples(now)[0],receipt:'data:text/html,hi'})));
+test('timezone-free deadlines rejected',()=>assert.throws(()=>validate({...examples(now)[0],deadline:'2026-10-06T12:00'})));
+test('unknown rewards do not rank ready',()=>assert.equal(status({...examples(now)[0],reward:'unknown'},now),'excluded'));
+test('invalid imports cannot partially replace state',()=>assert.throws(()=>importEntries(JSON.stringify({version:1,entries:[examples(now)[0],{}]}))));
+test('duplicate IDs rejected',()=>assert.throws(()=>importEntries(JSON.stringify({version:1,entries:[examples(now)[0],examples(now)[0]]}))));
+test('malformed JSON rejected',()=>assert.throws(()=>importEntries('{')));
+test('string verification is not boolean evidence',()=>assert.throws(()=>validate({...examples(now)[0],requirements:[{label:'test',done:'true'}]})));
+test('synthetic flag cannot silently disappear',()=>assert.throws(()=>validate({...examples(now)[0],synthetic:undefined})));

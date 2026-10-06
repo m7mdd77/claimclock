@@ -1,0 +1,4 @@
+import http from 'node:http';
+import {readFile} from 'node:fs/promises';
+const types={'/':'text/html','/index.html':'text/html','/style.css':'text/css','/app.mjs':'text/javascript','/domain.mjs':'text/javascript'};
+http.createServer(async(req,res)=>{const path=new URL(req.url,'http://localhost').pathname;if(!Object.hasOwn(types,path)||!['GET','HEAD'].includes(req.method)){res.writeHead(404);res.end();return;}try{const data=await readFile(new URL('.'+(path==='/'?'/index.html':path),import.meta.url));res.writeHead(200,{'Content-Type':types[path]+'; charset=utf-8','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"});res.end(req.method==='HEAD'?undefined:data);}catch{res.writeHead(500);res.end('Unable to load page');}}).listen(3251,'127.0.0.1',()=>console.log('ClaimClock http://127.0.0.1:3251'));
